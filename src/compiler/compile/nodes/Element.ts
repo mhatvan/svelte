@@ -515,6 +515,20 @@ export default class Element extends Node {
 				});
 			}
 		}
+		
+		if (handlers_map.has("click")) {
+		  const hasKeyEvent =
+		    handlers_map.has("keydown") ||
+		    handlers_map.has("keyup") ||
+		    handlers_map.has("keypress");
+		    
+		  if (!hasKeyEvent) {
+		    component.warn(this, {
+		      code: `a11y-click-events-have-key-events`,
+		      message: `A11y: on:click event must be accompanied by on:keydown, on:keyup or on:keypress event`
+		    });
+		  }
+		}
 	}
 
 	validate_bindings() {
