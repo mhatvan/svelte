@@ -8,6 +8,6 @@
 	} catch (error) {
 		value = error;
 	}
-}}>Click to create error</button>
+}} on:keyup={() => null}>Click to create error</button>
 
 {String(value)}

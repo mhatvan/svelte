@@ -8,5 +8,5 @@
 	}
 </script>
 
-<button on:click|passive="{handleClick}"></button>
+<button on:click|passive="{handleClick}" on:keyup="{handleClick}"></button>
 <div on:touchstart|passive="{handleTouchstart}"></div>
