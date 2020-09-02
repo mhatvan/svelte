@@ -544,6 +544,21 @@ Numeric input values are coerced; even though `input.value` is a string as far a
 <input type="range" bind:value={num}>
 ```
 
+---
+
+On `<input>` elements with `type="file"`, you can use `bind:files` to get the [`FileList` of selected files](https://developer.mozilla.org/en-US/docs/Web/API/FileList).
+
+```sv
+<label for="avatar">Upload a picture:</label>
+<input
+	accept="image/png, image/jpeg"
+	bind:files
+	id="avatar"
+	name="avatar"
+	type="file"
+/>
+```
+
 
 ##### Binding `<select>` value
 
@@ -773,7 +788,7 @@ Actions are functions that are called when an element is created. They can retur
 
 ---
 
-An action can have parameters. If the returned value has an `update` method, it will be called whenever those parameters change, immediately after Svelte has applied updates to the markup.
+An action can have a parameter. If the returned value has an `update` method, it will be called whenever that parameter changes, immediately after Svelte has applied updates to the markup.
 
 > Don't worry about the fact that we're redeclaring the `foo` function for every component instance — Svelte will hoist any functions that don't depend on local state out of the component definition.
 

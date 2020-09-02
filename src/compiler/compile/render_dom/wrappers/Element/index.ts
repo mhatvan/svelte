@@ -11,6 +11,7 @@ import { b, x, p } from 'code-red';
 import { namespaces } from '../../../../utils/namespaces';
 import AttributeWrapper from './Attribute';
 import StyleAttributeWrapper from './StyleAttribute';
+import SpreadAttributeWrapper from './SpreadAttribute';
 import { dimensions } from '../../../../utils/patterns';
 import Binding from './Binding';
 import InlineComponentWrapper from '../InlineComponent';
@@ -131,13 +132,13 @@ const events = [
 		event_names: ['toggle'],
 		filter: (node: Element, _name: string) =>
 			node.name === 'details'
-	},
+	}
 ];
 
 export default class ElementWrapper extends Wrapper {
 	node: Element;
 	fragment: FragmentWrapper;
-	attributes: AttributeWrapper[];
+	attributes: Array<AttributeWrapper | StyleAttributeWrapper | SpreadAttributeWrapper>;
 	bindings: Binding[];
 	event_handlers: EventHandler[];
 	class_dependencies: string[];
@@ -220,6 +221,9 @@ export default class ElementWrapper extends Wrapper {
 			}
 			if (attribute.name === 'style') {
 				return new StyleAttributeWrapper(this, block, attribute);
+			}
+			if (attribute.type === 'Spread') {
+				return new SpreadAttributeWrapper(this, block, attribute);
 			}
 			return new AttributeWrapper(this, block, attribute);
 		});
@@ -418,7 +422,7 @@ export default class ElementWrapper extends Wrapper {
 			return x`@_document.createElementNS("${namespace}", "${name}")`;
 		}
 
-		const is = this.attributes.find(attr => attr.node.name === 'is');
+		const is: AttributeWrapper = this.attributes.find(attr => attr.node.name === 'is') as any;
 		if (is) {
 			return x`@element_is("${name}", ${is.render_chunks(block).reduce((lhs, rhs) => x`${lhs} + ${rhs}`)})`;
 		}
@@ -664,25 +668,24 @@ export default class ElementWrapper extends Wrapper {
 
 		this.attributes
 			.forEach(attr => {
-				const condition = attr.node.dependencies.size > 0
-					? block.renderer.dirty(Array.from(attr.node.dependencies))
+				const dependencies = attr.node.get_dependencies();
+
+				const condition = dependencies.length > 0
+					? block.renderer.dirty(dependencies)
 					: null;
 
-				if (attr.node.is_spread) {
+				if (attr instanceof SpreadAttributeWrapper) {
 					const snippet = attr.node.expression.manipulate(block);
 
 					initial_props.push(snippet);
 
 					updates.push(condition ? x`${condition} && ${snippet}` : snippet);
 				} else {
-					const metadata = attr.get_metadata();
-					const name = attr.is_indirectly_bound_value()
-						? '__value'
-						: (metadata && metadata.property_name) || fix_attribute_casing(attr.node.name);
-					const snippet = x`{ ${name}: ${attr.get_value(block)} }`;
-					initial_props.push(snippet);
+					const name = attr.property_name || attr.name;
+					initial_props.push(x`{ ${name}: ${attr.get_init(block, attr.get_value(block))} }`);
+					const snippet = x`{ ${name}: ${attr.should_cache ? attr.last : attr.get_value(block)} }`;
 
-					updates.push(condition ? x`${condition} && ${snippet}` : snippet);
+					updates.push(condition ? x`${attr.get_dom_update_conditions(block, condition)} && ${snippet}` : snippet);
 				}
 			});
 
@@ -722,6 +725,18 @@ export default class ElementWrapper extends Wrapper {
 			block.chunks.update.push(b`
 				if (${block.renderer.dirty(Array.from(dependencies))} && ${data}.multiple) @select_options(${this.var}, ${data}.value);
 			`);
+		} else if (this.node.name === 'input' && this.attributes.find(attr => attr.node.name === 'value')) {
+			const type = this.node.get_static_attribute_value('type');
+			if (type === null || type === "" || type === "text" || type === "email" || type === "password") {
+				block.chunks.mount.push(b`
+					${this.var}.value = ${data}.value;
+				`);
+				block.chunks.update.push(b`
+					if ('value' in ${data}) {
+						${this.var}.value = ${data}.value;
+					}
+				`);
+			}
 		}
 	}
 
